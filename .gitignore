@@ -1,0 +1,13 @@
+# IA-TB Architecture
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_ed25519*
+secrets/
+backups/
+*.bak
+*.swp
+.DS_Store
+node_modules/
