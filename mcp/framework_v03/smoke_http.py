@@ -10,7 +10,7 @@ from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
 
-async def wait_and_test(port: int, expected_tool: str):
+async def wait_and_test(port: int, expected_tool: str, extra_tool: str | None = None):
     error = None
     for i in range(30):
         try:
@@ -20,6 +20,8 @@ async def wait_and_test(port: int, expected_tool: str):
                     result = await session.list_tools()
                     names = {t.name for t in result.tools}
                     assert expected_tool in names, names
+                    if extra_tool:
+                        assert extra_tool in names, names
                     assert all("sudo" not in n and "shell" not in n for n in names)
                     result = await session.call_tool(expected_tool, {})
                     assert not result.is_error, result
@@ -38,11 +40,11 @@ def main():
         with tempfile.TemporaryDirectory() as root:
             (Path(root) / "example.txt").write_text("hello", encoding="utf-8")
             variables = {**os.environ, "IATB_MCP_ENV": env, "IATB_MCP_STAGING": "1",
-                         "IATB_MCP_WORKSPACE": root}
+                         "IATB_MCP_WORKSPACE": root, "IATB_ARCH_ALLOW_LIVE_EXPORT": "1" if env == "architecture" else "0"}
             proc = subprocess.Popen([sys.executable, "staging_server.py"], env=variables,
                                     stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
             try:
-                asyncio.run(wait_and_test(port, tool))
+                asyncio.run(wait_and_test(port, tool, "architecture_export_live_site" if env == "architecture" else None))
             finally:
                 proc.terminate()
                 try:
