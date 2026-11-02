@@ -1,0 +1,43 @@
+name: Architecture - CI
+
+on:
+  pull_request:
+    paths:
+      - 'site/**'
+      - 'scripts/**'
+      - 'mcp/**'
+      - '.github/workflows/architecture-ci.yml'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: architecture-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exactly the tested revision
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate static site and Python sources
+        run: |
+          set -euo pipefail
+          python3 scripts/validate-site.py
+          python3 - <<'PY'
+          import ast
+          from pathlib import Path
+          for p in sorted(Path('mcp').glob('*.py')):
+              ast.parse(p.read_text(encoding='utf-8'), filename=str(p))
+              print('PASS Python syntax:', p)
+          PY
+          bash -n scripts/deploy-approved.sh
+      - name: Report tested revision
+        run: echo "Validated commit ${GITHUB_SHA}"
