@@ -89,6 +89,15 @@ else:
     def architecture_custom_request(operation: str, justification: str) -> dict:
         return custom_request(operation, justification)
 
+    if os.environ.get("IATB_ARCH_ALLOW_LIVE_EXPORT") == "1":
+        # Only expose after authenticated MCP ingress and authorized service install.
+        from live_export import export_published_site
+
+        @mcp.tool()
+        def architecture_export_live_site() -> dict:
+            """ZIP the currently published Architecture site on GEN-1, read-only."""
+            return export_published_site()
+
 
 if __name__ == "__main__":
     port = 8801 if ENV == "debug" else 8811
