@@ -1,0 +1,28 @@
+name: Architecture MCP framework v0.3
+on:
+  push:
+    paths:
+      - 'mcp/framework_v03/**'
+      - '.github/workflows/mcp-framework-v03.yml'
+  pull_request:
+    paths:
+      - 'mcp/framework_v03/**'
+      - '.github/workflows/mcp-framework-v03.yml'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install pinned MCP SDK
+        run: python3 -m pip install 'mcp==2.3.0'
+      - name: Test isolated framework
+        working-directory: mcp/framework_v03
+        run: |
+          python3 -m unittest discover -v
+          python3 -m py_compile framework.py test_framework.py mission.py staging_server.py smoke_http.py
+          python3 smoke_http.py
