@@ -18,7 +18,7 @@ flock -n 9 || { echo "Deploy already in progress"; exit 1; }
 [[ -d "$REPO/.git" ]] || { echo "Approved checkout not found"; exit 1; }
 command -v rsync >/dev/null && command -v curl >/dev/null || { echo "Missing rsync/curl"; exit 1; }
 # Git is never run as root. This requires the existing VPS Git Deploy Key.
-runuser -u iatbadmin -- git -C "$REPO" fetch --ff-only origin main
+runuser -u iatbadmin -- git -C "$REPO" fetch origin main
 HEAD="$(runuser -u iatbadmin -- git -C "$REPO" rev-parse refs/remotes/origin/main)"
 [[ "$HEAD" == "$APPROVED_SHA" ]] || { echo "Approved SHA != origin/main ($HEAD)"; exit 1; }
 # Export an immutable commit into temporary staging; no uncommitted files are deployed.
@@ -28,7 +28,6 @@ cleanup(){ rm -rf -- "$STAGE" "$RESTORE"; }
 trap cleanup EXIT
 runuser -u iatbadmin -- git -C "$REPO" archive "$APPROVED_SHA" site | tar -x -C "$STAGE"
 [[ -f "$STAGE/site/index.html" ]] || { echo "Approved commit missing site"; exit 1; }
-python3 "$REPO/scripts/validate-site.py" >/dev/null || echo "NOTE: validating staged site separately"
 # Validate the actual pinned snapshot, not the current working tree.
 python3 - "$STAGE/site/index.html" <<'PY'
 import sys
