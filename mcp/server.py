@@ -4,13 +4,13 @@ No shell execution, no deployment, no access to production directories.
 from __future__ import annotations
 import os
 from pathlib import Path
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 
 ROOT = Path(os.environ.get("IATB_ARCH_WORKSPACE", "/srv/iatb-architecture/workspace")).resolve(strict=True)
 SITE = (ROOT / "site").resolve(strict=True)
 if SITE != ROOT / "site" or not SITE.is_dir():
     raise RuntimeError("Invalid isolated site workspace")
-mcp = FastMCP("IA-TB Architecture Workspace", host="127.0.0.1", port=8810)
+mcp = MCPServer("IA-TB Architecture Workspace")
 MAX_BYTES = 512 * 1024
 
 def safe_file(relative_path: str) -> Path:
@@ -73,4 +73,4 @@ def architecture_write_file(path: str, content: str) -> str:
     return f"Workspace file updated: {f.relative_to(SITE)} (not deployed)"
 
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http")
+    mcp.run(transport="streamable-http", host="127.0.0.1", port=8810)
