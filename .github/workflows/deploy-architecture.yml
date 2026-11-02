@@ -1,0 +1,61 @@
+name: Architecture - approved deployment
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: architecture-production
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate source and deployment scripts
+        run: |
+          set -euo pipefail
+          python3 scripts/validate-site.py
+          python3 - <<'PY'
+          import ast
+          from pathlib import Path
+          for p in Path('mcp').glob('*.py'):
+              ast.parse(p.read_text(), filename=str(p))
+          PY
+          bash -n scripts/deploy-approved.sh
+          bash -n scripts/rollback-site.sh
+          bash -n scripts/automation/deploy-root.sh
+          bash -n scripts/automation/ssh-gate.sh
+
+  deploy:
+    needs: validate
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: architecture-production
+    steps:
+      - name: Send approved commit to restricted VPS gate
+        env:
+          DEPLOY_KEY: ${{ secrets.ARCHITECTURE_DEPLOY_KEY }}
+          DEPLOY_HOST: ${{ vars.ARCHITECTURE_DEPLOY_HOST }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.ARCHITECTURE_DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_KEY"
+          test -n "$DEPLOY_HOST"
+          test -n "$DEPLOY_KNOWN_HOSTS"
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/architecture-deploy
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/architecture-deploy ~/.ssh/known_hosts
+          ssh -i ~/.ssh/architecture-deploy \
+            -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=10 \
+            -o IdentitiesOnly=yes \
+            "iatb-arch-deploy@$DEPLOY_HOST" "deploy $GITHUB_SHA"
